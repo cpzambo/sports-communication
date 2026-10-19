@@ -42,7 +42,7 @@ Sports Non-Verbal Communication Video Annotator
 - Filter the list by action or team, and use "Play clips" to watch the filtered annotations one after another
 - A timeline under the player shows one row per action. Click a marker to jump to it
 - Summary shows counts per action per team and can be exported as CSV
-- You don't need a video to use the coding panel. Buttons, panels, hotkeys and bulk add can be set up first. With no video, tags use a live practice clock: type any time in the clock box (like 10:00 Q1), press Start clock, and it counts down (or up) while you tag. Each tag gets that clock time, and the tags are saved in this browser
+- You don't need a video to use the coding panel. Buttons, panels, hotkeys and bulk add can be set up first. With no video, the video area shows the computer's live time and tags get the time they are made, so you can code a game on TV as it happens. Those tags are saved in this browser
 - Load a video by uploading a file, choosing a folder, or linking one
 - Link a video: click "Link a video" and paste a Google Drive link to a video or to a whole folder, or a direct link to a video file. A folder shows its videos in Folder Contents (subfolders open and have a ".." to go back, and the folder name sets the team names like a folder from your computer does)
 - Google Drive links work without a key when the site is run with its Drive relay (npm start and the Vercel deploy both include it, see server/driveRelay.js). The relay fetches the file from Google for the page, so the file or folder just has to be shared with General access set to "Anyone with the link"

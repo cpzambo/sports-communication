@@ -48,6 +48,14 @@ import {
 
 const LIVE_KEY = 'live-session'; // annotations made without a video
 
+// with no video the timestamp is the computer's time of day
+const secondsOfDay = (d) => d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds() + d.getMilliseconds() / 1000;
+const wallLabel = (secs) => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return new Date(d.getTime() + secs * 1000).toLocaleTimeString();
+};
+
 export default function VideoAnnotator() {
   const [videoSrc, setVideoSrc] = useState(null);
   const [annotations, setAnnotations] = useState(() => loadAnnotations(LIVE_KEY));
@@ -131,9 +139,8 @@ export default function VideoAnnotator() {
   const panelImportRef = useRef(null);
   const clipRef = useRef(null);
   const hotkeyRef = useRef(null);
-  const [liveRunning, setLiveRunning] = useState(false); // the practice clock used when there is no video
-  const [liveDown, setLiveDown] = useState(true);
-  const liveRef = useRef({ base: 0, since: null }); // seconds counted before the last start, and when it started
+  const [now, setNow] = useState(() => new Date()); // computer time, shown and used for tags when there is no video
+ // seconds counted before the last start, and when it started
   const modalOpenRef = useRef(false);
   const lastIdRef = useRef(0);
   const liveBusyRef = useRef(false);
@@ -204,44 +211,11 @@ export default function VideoAnnotator() {
     saveAnnotations(videoKey || LIVE_KEY, annotations);
   }, [videoKey, annotations]);
 
-  // seconds the live clock has been running, used as the timestamp when there is no video
-  const liveTime = () => liveRef.current.base + (liveRef.current.since ? (Date.now() - liveRef.current.since) / 1000 : 0);
-
-  const toggleLive = () => {
-    if (liveRunning) {
-      liveRef.current = { base: liveTime(), since: null };
-      setLiveRunning(false);
-      return;
-    }
-    if (!/^\s*\d{1,2}:\d{2}/.test(gameClockTime)) setGameClockTime('10:00');
-    liveRef.current = { base: liveRef.current.base, since: Date.now() };
-    setLiveRunning(true);
-  };
-
   useEffect(() => {
-    if (videoSrc && liveRunning) {
-      liveRef.current = { base: liveTime(), since: null };
-      setLiveRunning(false);
-    }
-  }, [videoSrc]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!liveRunning || videoSrc) return undefined;
-    const timer = setInterval(() => {
-      setGameClockTime((prev) => {
-        const m = /^(\s*)(\d{1,2}):(\d{2})(.*)$/.exec(prev);
-        if (!m) return prev;
-        const secs = Math.max(0, Number(m[2]) * 60 + Number(m[3]) + (liveDown ? -1 : 1));
-        return `${m[1]}${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}${m[4]}`;
-      });
-    }, 1000);
+    if (videoSrc) return undefined;
+    const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
-  }, [liveRunning, liveDown, videoSrc]);
-
-  // a clock counting down stops at zero
-  useEffect(() => {
-    if (liveRunning && liveDown && /^\s*0:00/.test(gameClockTime)) toggleLive();
-  }, [gameClockTime]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [videoSrc]);
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -738,7 +712,7 @@ export default function VideoAnnotator() {
 
   const handleActionClick = (action) => {
     if (!videoRef.current) return;
-    const timestamp = videoSrc ? videoRef.current.currentTime : liveTime();
+    const timestamp = videoSrc ? videoRef.current.currentTime : secondsOfDay(new Date());
 
     if (action.kind === 'shot') {
       // Pause video while they fill out the form
@@ -778,7 +752,8 @@ export default function VideoAnnotator() {
       label: label !== undefined ? label : action.label,
       color: action.color,
       timestamp: ts,
-      formattedTime: formatTime(ts),
+      formattedTime: videoSrc ? formatTime(ts) : wallLabel(ts),
+      ...(videoSrc ? {} : { recordedAt: new Date().toISOString() }),
       startTime: Math.max(0, ts - lead),
       endTime: duration ? Math.min(duration, ts + lag) : ts + lag,
       gameClockTime: gameClockTime || 'N/A',
@@ -815,7 +790,7 @@ export default function VideoAnnotator() {
     if (!videoRef.current || !customAnnotation.trim()) return;
     const newAnnotation = buildAnnotation(
       { id: 'Other', label: customAnnotation.trim(), color: 'bg-gray-500' },
-      { timestamp: videoSrc ? videoRef.current.currentTime : liveTime() }
+      { timestamp: videoSrc ? videoRef.current.currentTime : secondsOfDay(new Date()) }
     );
     setAnnotations([newAnnotation, ...annotations]);
     setCustomAnnotation('');
@@ -1567,28 +1542,11 @@ export default function VideoAnnotator() {
                           Choose a folder
                         </button>
                       </div>
-                      <div className="mt-2 flex flex-col items-center gap-2">
-                        <div className="text-xs uppercase tracking-wide text-gray-500">Live clock (no video needed)</div>
-                        <input
-                          type="text"
-                          value={gameClockTime}
-                          onChange={(e) => setGameClockTime(e.target.value)}
-                          placeholder="10:00 Q1"
-                          aria-label="Live clock"
-                          className="w-64 text-center text-5xl font-mono bg-transparent text-white border-b border-gray-600 focus:border-blue-500 outline-none"
-                        />
-                        <div className="flex gap-2 text-sm">
-                          <button
-                            onClick={toggleLive}
-                            className={`px-3 py-1 rounded text-white ${liveRunning ? 'bg-red-600 hover:bg-red-500' : 'bg-green-600 hover:bg-green-500'}`}
-                          >
-                            {liveRunning ? 'Stop clock' : 'Start clock'}
-                          </button>
-                          <button onClick={() => setLiveDown((d) => !d)} className="px-3 py-1 rounded bg-gray-700 hover:bg-gray-600 text-white">
-                            {liveDown ? 'Counting down' : 'Counting up'}
-                          </button>
+                      <div className="mt-2 flex flex-col items-center gap-1">
+                        <div className="text-xs uppercase tracking-wide text-gray-500">Live time</div>
+                        <div className="text-5xl font-mono text-white" aria-label="Live time">
+                          {now.toLocaleTimeString()}
                         </div>
-                        <p className="text-xs text-gray-500">Type a time, press Start, then tag. Tags get this clock time.</p>
                       </div>
                     </div>
                   )}
@@ -1776,7 +1734,7 @@ export default function VideoAnnotator() {
                             className="flex items-center gap-2 flex-1 text-left"
                           >
                             <span {...colorProps(ann.color, 'px-2 py-1 rounded-full text-xs font-semibold')}>
-                              {!videoSrc && hasGameClock(ann) ? ann.gameClockTime : ann.formattedTime}
+                              {ann.formattedTime}
                             </span>
 
                             {videoSrc && hasGameClock(ann) && (
