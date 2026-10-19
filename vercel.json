@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/drive-video.js": { "maxDuration": 30 },
+    "api/drive-folder.js": { "maxDuration": 15 },
+    "api/drive-info.js": { "maxDuration": 15 }
+  }
+}

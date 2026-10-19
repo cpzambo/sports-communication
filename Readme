@@ -25,6 +25,50 @@ Sports Non-Verbal Communication Video Annotator
 
 
 
+# Tagging Panels and Buttons
+- Click the pencil on a button (or right-click it) to edit it: label, definition, color, group, hotkey, lead/lag, descriptors, and delete
+- Any button can be deleted. An Undo link shows up for a few seconds
+- "Create New Button" adds one button. "Bulk add" takes a list separated by commas, semicolons or new lines and skips names that already exist
+- Colors come from a palette or any hex value
+- Drag buttons to reorder them, or drop one on a group header to move it into that group. Click a group header to collapse it
+- Hotkeys: set a single key per button in the editor, then press it to tag. They are off while you type or while a dialog is open
+- Lead/lag: a button can save a range (tag time minus lead, plus lag) instead of a single time. Exports have Start and End columns
+- Descriptors: options that are asked after you tag, like "Teammate, Official"
+- Panels: keep several sets of buttons and switch between them with the dropdown. You can create, rename, duplicate, delete and reset them, and export or import them as JSON. Import adds new panels and never overwrites yours
+- Panels and the annotations of each video are saved in the browser (localStorage)
+
+# More Annotation Features
+- Edit an annotation with the pencil: label, time, game clock, descriptor and a note
+- Filter the list by action or team, and use "Play clips" to watch the filtered annotations one after another
+- A timeline under the player shows one row per action. Click a marker to jump to it
+- Summary shows counts per action per team and can be exported as CSV
+- You don't need a video to use the coding panel. Buttons, panels, hotkeys and bulk add can be set up first. With no video, the video area shows the computer's live time and tags get the time they are made, so you can code a game on TV as it happens. Those tags are saved in this browser
+- Load a video by uploading a file, choosing a folder, or linking one
+- Link a video: click "Link a video" and paste a Google Drive link to a video or to a whole folder, or a direct link to a video file. A folder shows its videos in Folder Contents (subfolders open and have a ".." to go back, and the folder name sets the team names like a folder from your computer does)
+- Google Drive links work without a key when the site is run with its Drive relay (npm start and the Vercel deploy both include it, see server/driveRelay.js). The relay fetches the file from Google for the page, so the file or folder just has to be shared with General access set to "Anyone with the link"
+- If a site has no relay, Drive needs a free Google API key instead. Paste it in the Link box and it is saved in this browser. To make one:
+  1. Go to console.cloud.google.com and create (or pick) a project
+  2. APIs & Services > Library > search "Google Drive API" > Enable
+  3. APIs & Services > Credentials > Create credentials > API key. It is a good idea to restrict it: API restrictions > Google Drive API, and Website restrictions > this site (and http://localhost:3000/* for testing)
+  4. In Drive, share the video or folder with General access set to "Anyone with the link" (Viewer)
+  5. To give everyone the same key, set REACT_APP_GOOGLE_API_KEY when building the site. Otherwise each person pastes their own
+- Videos opened from Drive can be tagged, and the clock and scoreboard can be read from them. Private files, or files that are not shared with "Anyone with the link", can't be opened
+- Upload accepts MP4, WebM, MOV, MKV, AVI and other common types, but the browser only plays what its codecs support (MP4 with H.264 is safest). A file that won't play gets a message saying how to convert it with HandBrake or VLC
+- Browsers can only play some formats. An MP4 with H.264 is safest. Some .mov files (for example ProRes or HEVC) will download fine but won't play
+- A direct link to a video file works if the other site allows it. If it doesn't allow reading the picture, the clock and score can't be read from that video, and a note says so in the clock and scoreboard panel
+
+# Game Clock and Scoreboard
+- The game clock and the score are read from the video, so you don't have to type them
+- Click "Set scoreboard area" and draw a box around the scoreboard. It is looked at straight away: the app compares a few moments of the video, finds the parts that stay in place, and works out the team names, the two scores and the clock. The team names go on the Team buttons. The box can include the clock or not
+- It keeps the clock and scores up to date while the video plays and after you seek ("Live read"). If the scores can't be read for a while it looks at the scoreboard again, in case the layout changed. "Re-detect" does it on demand
+- If it can't work it out, open "Manual options" and draw the boxes yourself: "Set score A" and "Set score B" around each score number, and "Set clock area" around the clock. "Find clock" tries to find the clock by itself
+- "Auto on tag" reads the clock and scores for every new tag and saves them on the annotation
+- If the clock moves around the screen, tick "Camera moves" and set the clock area again at a few points in the video
+- Readings are checked before they are used. The clock can't run faster than the video or change direction, and a score can only go up by a small amount and has to be seen twice. This stops glitches like 0 turning into 108. When you jump to another part of the video the boxes are cleared until a new reading is found, and if the scoreboard is hidden for a moment the last good value stays
+- The small box next to the clock is a period (like Q2) that gets added to the clock
+- Reading uses tesseract.js, which downloads its data the first time, so it needs an internet connection. Results can be wrong, so check them
+- The exports get a Scoreboard column and a scores field
+
 # Definitions:
 
 - Eye Contact  
@@ -92,12 +136,18 @@ Sports Non-Verbal Communication Video Annotator
   "label": "Screen",
   "timestamp": 32.841,
   "formattedTime": "0:32",
-  "gameClockTime": "9:12 Q1" (if applicable)
+  "gameClockTime": "9:12 Q1" (if applicable),
+  "activeTeamName": "Team A",
+  "startTime": 32.841,   (timestamp minus the button's lead)
+  "endTime": 32.841,     (timestamp plus the button's lag)
+  "descriptor": "Teammate" (if used),
+  "note": ""
 }
 
  - csv
 
-{ id,type,label,timestamp,formattedTime,gameClockTime }
+Timestamp,Game Clock,Team,Action,Label,Start,End,Descriptor,Note
+(the first five columns are unchanged)
 
 
 
